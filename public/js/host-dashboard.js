@@ -190,6 +190,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="fas fa-chart-bar"></i>
                                     Responses
                                 </button>
+                                ${event.status === 'published' ? `
+                                    <button class="btn btn-success" onclick="copyJambMockLink('${event.shareId}')">
+                                        <i class="fas fa-link"></i>
+                                        Copy Student Link
+                                    </button>
+                                ` : ''}
                                 ${event.status === 'completed' ? `
                                     <button class="btn btn-primary" onclick="publishEvent('${event._id}')">
                                         <i class="fas fa-share"></i>
@@ -365,6 +371,15 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('Quiz link copied to clipboard!', 'success');
         }).catch(() => {
             prompt('Copy this quiz link:', link);
+        });
+    };
+
+    window.copyJambMockLink = function(shareId) {
+        const link = `${window.location.origin}/jamb-mock/${shareId}`;
+        navigator.clipboard.writeText(link).then(() => {
+            showAlert('JAMB Mock link copied to clipboard!', 'success');
+        }).catch(() => {
+            prompt('Copy this JAMB Mock link:', link);
         });
     };
     window.publishEvent = async function(eventId) {
