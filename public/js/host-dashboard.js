@@ -191,10 +191,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     Responses
                                 </button>
                                 ${event.status === 'published' ? `
-                                    <button class="btn btn-success" onclick="copyJambMockLink('${event.shareId}')">
-                                        <i class="fas fa-link"></i>
-                                        Copy Student Link
-                                    </button>
+                                    <div class="student-link-container">
+                                        <div class="student-link-info">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            <span>Student Link:</span>
+                                        </div>
+                                        <div class="student-link-url">${window.location.origin}/jamb-mock/${event.shareId}</div>
+                                        <button class="copy-link-btn" onclick="copyJambMockLink('${event.shareId}')">
+                                            <i class="fas fa-copy"></i>
+                                            Copy
+                                        </button>
+                                    </div>
                                 ` : ''}
                                 ${event.status === 'completed' ? `
                                     <button class="btn btn-primary" onclick="publishEvent('${event._id}')">
@@ -389,7 +396,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const response = await fetch(`/api/host/events/${eventId}/publish`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
 
             const result = await response.json();
@@ -403,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert(result.error || 'Failed to publish event', 'error');
             }
         } catch (error) {
+            console.error('Publish event error:', error);
             showAlert('Network error. Please try again.', 'error');
         }
     };
