@@ -750,8 +750,6 @@ app.get('/api/host/events/:eventId/details', authenticateHost, async (req, res) 
 // Publish event
 app.post('/api/host/events/:eventId/publish', authenticateHost, async (req, res) => {
     try {
-        console.log('Publishing event:', req.params.eventId);
-        
         const event = await JambEvent.findOne({ 
             _id: req.params.eventId, 
             hostId: req.host._id 
@@ -761,29 +759,13 @@ app.post('/api/host/events/:eventId/publish', authenticateHost, async (req, res)
             return res.status(404).json({ error: 'Event not found' });
         }
 
-        console.log('Current event status:', event.status);
-        console.log('Event subjects:', event.subjects.map(s => ({ subject: s.subject, questionCount: s.questionCount })));
-        
-        // Check if all subjects have enough questions
-        const incompleteSubjects = event.subjects.filter(subject => 
-            subject.questionCount < event.questionsPerSubject
-        );
-        
-        if (incompleteSubjects.length > 0) {
-            const subjectNames = incompleteSubjects.map(s => `${s.subject} (${s.questionCount}/${event.questionsPerSubject})`);
-            return res.status(400).json({ 
-                error: `Cannot publish event. The following subjects need more questions: ${subjectNames.join(', ')}` 
-            });
-        }
-        // Update status to completed first if not already
-        if (event.status === 'active') {
-            event.status = 'completed';
+        if (event.status !== 'completed') {
+            return res.status(400).json({ error: 'Event must be completed before publishing' });
         }
 
         event.status = 'published';
         await event.save();
 
-        console.log('Event published successfully, new status:', event.status);
         res.json({ message: 'Event published successfully' });
     } catch (error) {
         console.error('Error publishing event:', error);
@@ -937,31 +919,16 @@ app.post('/api/teacher/events/:eventId/contribute', authenticateTeacher, async (
             !q.teacherId || q.teacherId.toString() !== req.teacher._id.toString()
         );
 
-        // Add new questions with proper validation
-        const newQuestions = questions.map(q => {
-            // Validate required fields
-            if (!q.question || !q.options || q.correctAnswer === undefined) {
-                throw new Error('Invalid question data: missing required fields');
-            }
-            
-            if (!Array.isArray(q.options) || q.options.length !== 4) {
-                throw new Error('Each question must have exactly 4 options');
-            }
-            
-            if (q.correctAnswer < 0 || q.correctAnswer > 3) {
-                throw new Error('Correct answer must be between 0 and 3');
-            }
-            
-            return {
-                question: q.question.trim(),
-                options: q.options.map(opt => opt.trim()),
-                correctAnswer: parseInt(q.correctAnswer),
-                imageUrls: q.imageUrls || [],
-                imagePublicIds: q.imagePublicIds || [],
-                teacherId: req.teacher._id,
-                teacherName: req.teacher.name
-            };
-        });
+        // Add new questions
+        const newQuestions = questions.map(q => ({
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            imageUrls: q.imageUrls || [],
+            imagePublicIds: q.imagePublicIds || [],
+            teacherId: req.teacher._id,
+            teacherName: req.teacher.name
+        }));
 
         event.subjects[subjectIndex].questions.push(...newQuestions);
         event.subjects[subjectIndex].questionCount = event.subjects[subjectIndex].questions.length;
@@ -993,9 +960,6 @@ app.post('/api/teacher/events/:eventId/contribute', authenticateTeacher, async (
             event.status = 'completed';
         }
 
-        // Mark the document as modified to ensure Mongoose saves it
-        event.markModified('subjects');
-        event.markModified('totalQuestions');
         await event.save();
 
         console.log('Questions saved successfully');
@@ -1229,30 +1193,6 @@ async function createDefaultHost() {
             await host.save();
             console.log('Default host account created: host@smartsteps.com / admin123');
         }
-        
-        // Create default teacher accounts for testing
-        const defaultTeachers = [
-            { name: 'John Mathematics', email: 'math@smartsteps.com', subject: 'Mathematics', password: 'teacher123' },
-            { name: 'Jane English', email: 'english@smartsteps.com', subject: 'English', password: 'teacher123' },
-            { name: 'Bob Physics', email: 'physics@smartsteps.com', subject: 'Physics', password: 'teacher123' },
-            { name: 'Alice Chemistry', email: 'chemistry@smartsteps.com', subject: 'Chemistry', password: 'teacher123' },
-            { name: 'Carol Biology', email: 'biology@smartsteps.com', subject: 'Biology', password: 'teacher123' }
-        ];
-        
-        for (const teacherData of defaultTeachers) {
-            const existingTeacher = await Teacher.findOne({ email: teacherData.email });
-            if (!existingTeacher) {
-                const hashedPassword = await bcrypt.hash(teacherData.password, 10);
-                const teacher = new Teacher({
-                    name: teacherData.name,
-                    email: teacherData.email,
-                    subject: teacherData.subject,
-                    password: hashedPassword
-                });
-                await teacher.save();
-                console.log(`Default teacher account created: ${teacherData.email} / teacher123`);
-            }
-        }
     } catch (error) {
         console.error('Error creating default host:', error);
     }
@@ -1261,15 +1201,5 @@ async function createDefaultHost() {
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log('='.repeat(50));
-    console.log('DEFAULT ACCOUNTS:');
-    console.log('Host: host@smartsteps.com / admin123');
-    console.log('Teachers:');
-    console.log('  Math: math@smartsteps.com / teacher123');
-    console.log('  English: english@smartsteps.com / teacher123');
-    console.log('  Physics: physics@smartsteps.com / teacher123');
-    console.log('  Chemistry: chemistry@smartsteps.com / teacher123');
-    console.log('  Biology: biology@smartsteps.com / teacher123');
-    console.log('='.repeat(50));
     createDefaultHost();
 });

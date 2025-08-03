@@ -507,7 +507,7 @@ async function saveQuestions(e) {
 
         if (response.ok) {
             showAlert(
-                `Questions saved successfully! Saved ${result.questionCount} questions. Subject total: ${result.totalSubjectQuestions}. Event status: ${result.eventStatus}`,
+                `Questions saved successfully! Saved ${result.questionCount} questions. Subject total: ${result.totalSubjectQuestions}`,
                 'success'
             );
             setTimeout(() => {
